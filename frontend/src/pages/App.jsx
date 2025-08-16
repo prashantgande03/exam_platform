@@ -5,6 +5,7 @@ import Exam from './Exam'
 import Result from './Result'
 import Admin from './Admin'
 import { useAuth } from '../store'
+import AdminUserAnswersDetail from '../pages/AdminUserAnswersDetail'
 
 function Nav() {
   const { token, role, logout } = useAuth()
@@ -33,11 +34,12 @@ export default function App() {
       <Nav />
       <div className="container">
         <Routes>
-          <Route path="/" element={<Navigate to={token ? '/exam' : '/login'} />} />
+          <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
           <Route path="/exam" element={<Exam />} />
           <Route path="/result" element={<Result />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/userans/:userId" element={<AdminUserAnswersDetail />} />
         </Routes>
       </div>
     </div>

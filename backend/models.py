@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Float, Text, Boolean
+from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 import os
 
@@ -25,6 +26,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default='student')
     created_at = Column(DateTime, default=datetime.utcnow)
+    mcq_answers = relationship('MCQAnswer', backref='user', cascade='all, delete-orphan')
+    lab_submissions = relationship('LabSubmission', backref='user', cascade='all, delete-orphan')
 
     answers = relationship('Answer', back_populates='user')
     results = relationship('Result', back_populates='user')
@@ -67,3 +70,54 @@ class Result(Base):
 def init_db():
     """Create tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
+
+
+# New: MCQ models
+class MCQQuestion(Base):
+    __tablename__ = 'mcq_questions'
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    prompt = Column(Text, nullable=False)
+    options_json = Column(Text, nullable=False)  # JSON-encoded list of options
+    correct_index = Column(Integer, nullable=False)
+    marks = Column(Float, default=1.0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    answers = relationship('MCQAnswer', backref='question', cascade='all, delete-orphan')
+
+
+class MCQAnswer(Base):
+    __tablename__ = 'mcq_answers'
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    question_id = Column(Integer, ForeignKey('mcq_questions.id'), nullable=False)
+    selected_index = Column(Integer, nullable=False)
+    is_correct = Column(Boolean, default=False)
+    score = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# New: Hands-on Lab models
+class LabTask(Base):
+    __tablename__ = 'lab_tasks'
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    instructions = Column(Text, nullable=False)
+    resource_filename = Column(String(512))  # stored under uploads/resources
+    resource_mime = Column(String(128))
+    marks = Column(Float, default=5.0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    submissions = relationship('LabSubmission', backref='task', cascade='all, delete-orphan')
+
+class LabSubmission(Base):
+    __tablename__ = 'lab_submissions'
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey('lab_tasks.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    upload_filename = Column(String(512), nullable=False)  # stored under uploads/submissions
+    upload_mime = Column(String(128), default='')
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    manual_score = Column(Float)  # set by admin
+    feedback = Column(Text)
+    status = Column(String(32), default='submitted')  # submitted|reviewed
